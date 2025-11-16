@@ -39,6 +39,7 @@ void _Usage_Fault_Handler(void)     __attribute__ ((weak, alias("_Unused_Handler
 void _SVCall_Handler(void)          __attribute__ ((weak, alias("_Unused_Handler")));
 void _Debug_Monitor_Handler(void)   __attribute__ ((weak, alias("_Unused_Handler")));
 void _PendSV_Handler(void)          __attribute__ ((weak, alias("_Unused_Handler")));
+void _SysTick_Handler(void)          __attribute__ ((weak, alias("_Unused_Handler")));
 void dflt_irq_handler(void)         __attribute__ ((weak, alias("_Unused_Handler")));
 
 /* Exception Table */

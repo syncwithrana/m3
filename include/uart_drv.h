@@ -1,3 +1,4 @@
+#include <stdint.h>
 #ifndef __UART_DRV_H__
 #define __UART_DRV_H__
 
