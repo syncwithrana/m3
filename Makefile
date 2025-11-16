@@ -11,9 +11,8 @@ ACTION := $(firstword $(MAKECMDGOALS))
 MODULE := $(word 2, $(MAKECMDGOALS))
 
 #------------------ Module dependencies ------------------
-DEPS_irq := uart
-DEPS_systick := irq uart nvic sysctl
-DEPS_uart := sysctl
+DEPS_systick := uart nvic sysctl
+DEPS_uart := nvic sysctl
 DEPS_sysctl :=
 DEPS_nvic :=
 

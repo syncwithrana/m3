@@ -127,7 +127,6 @@ void uart_init(uint32_t baudrate)
     sysctl_periph_clk_enable(UART0_BASE);
     uart_set_baudrate(baudrate);
     uart_set_example_line_ctrls();
-    uart_irq_enable(UART_RX_IRQ);
     uart_enable();
 }
 

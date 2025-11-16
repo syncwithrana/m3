@@ -1,5 +1,4 @@
 #include <stdint.h>
-#include "irq.h"
 
 /* Linker symbols for TI Stellaris LM3S6965 
  * defining start/end of various sections
@@ -142,42 +141,19 @@ void (* const  _exceptions[])(void) = {
     HIB_Handler                                     // 59: Hibernation
 };
 
-/* _Reset_Handler is what is invoked when the processor is reset.
- * As seen in the vector table, it represents the initial value of
- * the program counter. This is where we setup and call main()
- * We'll create a separate section .startup so this resides 
- * immediately after the vector table - as required by LM3S6965 (ARM Cortex-M3)
- */
 __attribute__ ((section(".startup")))
 void _Reset_Handler(void)
 {
-    /* Let's disable interrupts for now, shall we */
-    irq_master_disable();
+    uint32_t *src = &_flash_sdata;
+    uint32_t *dst = &_sram_sdata;
 
-    /* Copy the data segment from flash to sram */
+    while (dst < &_sram_edata)
+        *dst++ = *src++;
 
-    uint32_t *pSrc = &_flash_sdata;   
-    uint32_t *pDest = &_sram_sdata;
+    dst = &_sram_sbss;
+    while (dst < &_sram_ebss)
+        *dst++ = 0;
 
-    while(pDest < &_sram_edata)
-    {
-        *pDest++ = *pSrc++;
-    }
-
-    /* Zero initialize the bss segment in sram */
-    pDest = &_sram_sbss;
-    
-    while(pDest < &_sram_ebss)
-    {
-        *pDest++ = 0;
-    }
-
-    /* Call main() */
     main();
-
-   /* main() isn't supposed return 
-    * - if it does, we need to identify this
-    * for now, we'll loop infintely
-    */
-    while(1);
+    while (1);
 }

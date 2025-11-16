@@ -14,6 +14,9 @@ int main(void)
     /* Also, let's also turn on the UART0 interrupt */
     nvic_irq_enable(IRQ_UART0);
 
+    /* Configure the uart to a baud-rate of 115200 */
+    uart_init(UART_BAUD_115200);
+
     /* Set the system clock to the PLL with the main oscillator as the source
      * with the crystal frequency set to 8 MHz. 
      * Divide the PLL output clock frquency by a factor of 12.
@@ -38,8 +41,6 @@ int main(void)
     systick_irq_enable();
     systick_enable();
 
-    /* Configure the uart to a baud-rate of 115200 */
-    uart_init(UART_BAUD_115200);
 
     serial_puts("System Initialized.\r\n");
 
