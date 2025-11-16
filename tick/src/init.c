@@ -6,17 +6,8 @@
 #include "uart_drv.h"
 #include "serial_print.h"
 
-/* main() represents the entry point in a c program.
- * In this bare-metal system, main represents the 
- * function where we initialize the various peripherals and 
- * in a way serves as an entry point to the (initialized) system
- */
-
 int main(void)
 {
-    const char *start_msg = "Hello, World\n";
-    uint32_t clk_cfg1, clk_cfg2;
-
     /* Let's now re-enable the interrupts*/
     irq_master_enable();
 
@@ -28,9 +19,13 @@ int main(void)
      * Divide the PLL output clock frquency by a factor of 12.
      * Turn off the (unused) internal oscillator. This is to configure a system clock of 16.67 MHz.
      */
-    clk_cfg1 = (SYSCTL_PLL_SYSCLK | SYSCTL_RCC_USESYSDIV | SYSCTL_RCC_SYSDIV_11 | 
+    uint32_t clk_cfg1 = (SYSCTL_PLL_SYSCLK | SYSCTL_RCC_USESYSDIV | SYSCTL_RCC_SYSDIV_11 | 
                SYSCTL_RCC_XTAL_8MHZ | SYSCTL_RCC_OSCSRC_MOSC | SYSCTL_RCC_IOSCDIS);
-    clk_cfg2 = 0;
+    uint32_t clk_cfg2 = 0;
+    
+    serial_puts("Configuring system clock...: ");
+    serial_put_uint(clk_cfg1);
+    serial_putchar('\n');
 
     sysctl_setclk(clk_cfg1, clk_cfg2);
     
@@ -46,13 +41,7 @@ int main(void)
     /* Configure the uart to a baud-rate of 115200 */
     uart_init(UART_BAUD_115200);
 
-    serial_puts(start_msg);
-
-    serial_putchar('.');
-    serial_putchar('.');
-    serial_putchar('.');
-
-    serial_puts("\nGo on, say something...\n");
+    serial_puts("System Initialized.\r\n");
 
     while(1);
 
