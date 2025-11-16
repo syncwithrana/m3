@@ -2,7 +2,6 @@
 #include "lm3s6965_memmap.h"
 #include "nvic.h"
 
-#define NVIC_BASE       ((M3_PERIPHERAL_BASE)+ 0x00000100u)
 
 /* NVIC register map structure.
  * Refer: http://www.ti.com/lit/ds/symlink/lm3s6965.pdf Table 3-7.

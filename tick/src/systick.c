@@ -5,7 +5,6 @@
 #include "uart_drv.h"
 #include "serial_print.h"
 
-#define SYS_TIMER_BASE          ((M3_PERIPHERAL_BASE)+ 0x00000010u)
 #define MILLISECS_IN_SEC        1000u
 #define TWENTY_TICKS            20u
 

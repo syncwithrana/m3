@@ -12,6 +12,8 @@
  * in a way serves as an entry point to the (initialized) system
  */
 
+void uart0_irq_handler(void) {}
+
 int main(void)
 {
     const char *start_msg = "Hello, World\n";

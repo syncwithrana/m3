@@ -19,12 +19,12 @@ MODULE ?= tick
 
 SRCDIR := $(MODULE)/src
 INCDIR := $(MODULE)/inc
-INC := -I inc -I $(INCDIR)
+INC := -I inc -I irq/inc -I uart/inc -I tick/inc -I common/uart/inc
 OBJDIR := obj/$(MODULE)
 BINDIR := bin/$(MODULE)
 
-SRCS := $(wildcard $(SRCDIR)/*.c)
-OBJS := $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(SRCS))
+SRCS := $(wildcard $(SRCDIR)/*.c) common/uart/src/uart_drv.c
+OBJS := $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(wildcard $(SRCDIR)/*.c)) obj/common_uart_drv.o
 
 all: $(BINDIR)/system.bin
 
@@ -39,7 +39,12 @@ $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
 
+
 $(OBJDIR)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
+	$(CC) $(CFLAGS) $(INC) -o $@ $<
+
+# Compile common/uart/src/uart_drv.c to obj/common_uart_drv.o
+obj/common_uart_drv.o: common/uart/src/uart_drv.c | obj
 	$(CC) $(CFLAGS) $(INC) -o $@ $<
 
 
