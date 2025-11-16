@@ -1,76 +1,74 @@
-
-# Tooling/paths
+#------------------ Toolchain ------------------
 CC := arm-none-eabi-gcc
 LD := arm-none-eabi-ld
 OBJCOPY := arm-none-eabi-objcopy
-NM := arm-none-eabi-nm
-OBJDUMP := arm-none-eabi-objdump
-SIZE := arm-none-eabi-size
 
-CFLAGS := -c -g -mcpu=cortex-m3 -mthumb
-LDFLAGS := -T lm3s6965_layout.ld
+CFLAGS := -c -g -mcpu=cortex-m3 -mthumb -Iinclude -Iplatform
+LDFLAGS := -T platform/lm3s6965_layout.ld
 
-# Module handling: call `make <module>` or `make MODULE=<module>` to build
-# a module whose layout is:
-#   <module>/src/*.c
-#   <module>/inc/*.h
-# Default module when MODULE is not provided is `uart`.
-MODULE ?= tick
+#------------------ Parse ACTION + MODULE ------------------
+ACTION := $(firstword $(MAKECMDGOALS))
+MODULE := $(word 2, $(MAKECMDGOALS))
 
-SRCDIR := $(MODULE)/src
-INCDIR := $(MODULE)/inc
-INC := -I inc -I $(INCDIR)
+#------------------ Module dependencies ------------------
+DEPS_systick := uart nvic sysctl
+DEPS_uart := nvic sysctl
+DEPS_sysctl :=
+DEPS_nvic :=
+
+MODULES := $(MODULE) $(DEPS_$(MODULE))
+
+#------------------ Paths ------------------
 OBJDIR := obj/$(MODULE)
 BINDIR := bin/$(MODULE)
 
-SRCS := $(wildcard $(SRCDIR)/*.c)
-OBJS := $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(SRCS))
+#------------------ Source discovery ------------------
+DRIVER_SRCS := $(foreach m,$(MODULES),$(wildcard drivers/$(m)/*.c))
+PLATFORM_SRCS := $(wildcard platform/*.c)
+TEST_SRC := $(wildcard test/test_$(MODULE).c)
 
-all: $(BINDIR)/system.bin
+SRCS := $(DRIVER_SRCS) $(PLATFORM_SRCS) $(TEST_SRC)
 
-# Allow `make uart` to run the module build: it delegates to `make MODULE=uart build`
-.PHONY: %
-%:
-	$(MAKE) MODULE=$@ build
+OBJ_NAMES := $(notdir $(SRCS:.c=.o))
+OBJS := $(addprefix $(OBJDIR)/,$(OBJ_NAMES))
 
-build: $(BINDIR)/system.bin
-
+#------------------ Directory creation ------------------
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
-
-
-$(OBJDIR)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
-	$(CC) $(CFLAGS) $(INC) -o $@ $<
-
 
 $(BINDIR):
 	mkdir -p $(BINDIR)
 
-$(BINDIR)/startup_lm3s6965.elf: $(OBJS) | $(BINDIR)
+#------------------ Compile rule (.c → .o) ------------------
+$(OBJDIR)/%.o: | $(OBJDIR)
+	@src="$$(printf "%s\n" $(SRCS) | grep -E '/$*.c$$')"; \
+	echo "CC $$src -> $@"; \
+	$(CC) $(CFLAGS) -o $@ "$$src"
+
+#------------------ Link + convert ------------------
+$(BINDIR)/app.elf: $(OBJS) | $(BINDIR)
 	$(LD) $(LDFLAGS) -o $@ $(OBJS)
 
-$(BINDIR)/system.bin: $(BINDIR)/startup_lm3s6965.elf
+$(BINDIR)/app.bin: $(BINDIR)/app.elf
 	$(OBJCOPY) -O binary $< $@
 
+#------------------ Actions ------------------
+.PHONY: build run rundbg clean
 
-run: $(BINDIR)/system.bin
-	qemu-system-arm -M lm3s6965evb -kernel $(BINDIR)/system.bin -nographic -monitor telnet:127.0.0.1:1234,server,nowait
+build:
+	@if [ -z "$(MODULE)" ]; then echo "Usage: make build <module>"; exit 1; fi
+	@if [ -z "$(TEST_SRC)" ]; then echo "ERROR: test/test_$(MODULE).c missing (needs main())"; exit 1; fi
+	$(MAKE) MODULE=$(MODULE) $(BINDIR)/app.bin
 
-rundbg: $(BINDIR)/system.bin
-	qemu-system-arm -S -M lm3s6965evb -kernel $(BINDIR)/system.bin -gdb tcp::5678 -nographic -monitor telnet:127.0.0.1:1234,server,nowait
+run:
+	@if [ -z "$(MODULE)" ]; then echo "Usage: make run <module>"; exit 1; fi
+	$(MAKE) MODULE=$(MODULE) build
+	qemu-system-arm -M lm3s6965evb -kernel bin/$(MODULE)/app.bin -nographic
 
+rundbg:
+	@if [ -z "$(MODULE)" ]; then echo "Usage: make rundbg <module>"; exit 1; fi
+	$(MAKE) MODULE=$(MODULE) build
+	qemu-system-arm -S -M lm3s6965evb -kernel bin/$(MODULE)/app.bin -gdb tcp::5678 -nographic
 
 clean:
-	rm -rf $(OBJDIR) $(BINDIR) *.elf *.bin
-
-cleanall:
 	rm -rf obj bin *.elf *.bin
-
-dump:
-	@for o in $(OBJS); do \
-		$(NM) -n $$o || true; \
-		$(OBJDUMP) -h $$o || true; \
-	done
-	$(NM) -n $(BINDIR)/startup_lm3s6965.elf || true
-	$(OBJDUMP) -h $(BINDIR)/startup_lm3s6965.elf || true
-	$(SIZE) $(BINDIR)/startup_lm3s6965.elf

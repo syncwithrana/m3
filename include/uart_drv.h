@@ -1,3 +1,4 @@
+#include <stdint.h>
 #ifndef __UART_DRV_H__
 #define __UART_DRV_H__
 
@@ -28,6 +29,12 @@ typedef enum{
 
 #define UART_RX_IRQ         0x00000010u
 #define UART_RT_IRQ         0x00000040u
+
+#define UART_BAUD_9600      9600u
+#define UART_BAUD_19200     19200u
+#define UART_BAUD_38400     38400u
+#define UART_BAUD_57600     57600u
+#define UART_BAUD_115200    115200u
 
 void uart_init(uint32_t baudrate);
 void uart_tx_byte(uint8_t byte);

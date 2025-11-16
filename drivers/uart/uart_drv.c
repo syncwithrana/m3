@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include "lm3s6965_memmap.h"
 #include "uart_drv.h"
+#include "sysctl.h"
 
 /* UART register map structure.
  * Refer: http://www.ti.com/lit/ds/symlink/lm3s6965.pdf Table 12-3.
@@ -30,29 +31,6 @@ typedef struct __attribute__ ((packed)){
  */
 static volatile uart_regs *uart0 = (uart_regs*)UART0_BASE;
 
-/* UART baud rate is determined in terms of the systemclock.
- * The default setting of the system clock on LM3S6965 is 12MHz.
- * Refer: http://www.ti.com/lit/ds/symlink/lm3s6965.pdf Table 5-5.
- * Also, when you run qemu with lm3s6965, a peek into Regsiter RCC (0x400FE060)
- * and RCC2 (which overrides RCC if USERCC2 is set) show that the value of SYSDIV/SYSDIV2 fields 
- * respectively is 16 ==> the sysclock frequency is 12.5 MHz
- */
-#define UART_DFLT_SYSCLK 12500000u
-
-/* Refer: http://www.ti.com/lit/ds/symlink/lm3s6965.pdf 12.4
- * to use UART0, the UART0 bit in RCGC1 should be set.
- * Check page 220 of the above manual for 
- * the address of RCGC1 and its description
- * TODO: this is a hack to get the uart working. It will be placed in
- * it's own file.
- */
-static void set_clk_uart0(void)
-{
-    uint32_t *pRCGC1 = (uint32_t*)0x400FE104u;
-
-    *pRCGC1 |= 0x00000001u;
-}
-
 /* Enable the uart
  * TXE and RXE - transmit and recieve enable bits
  * are enabled out of reset - hence we don't set them here.
@@ -80,17 +58,18 @@ static void uart_disable(void)
 /* Set the uart baudrate of the uart device*/
 static void uart_set_baudrate(uint32_t baudrate)
 {
-    uint32_t brdi, brdf, dvsr, remd;
+    uint32_t sysclk, brdi, brdf, dvsr, remd;
 
     /* Refer http://www.ti.com/lit/ds/symlink/lm3s6965.pdf 12.3.2 */
-    
+    sysclk = sysctl_getclk();
+
     dvsr = (baudrate * 16u);
 
     /* integer part of the baud rate */
-    brdi = UART_DFLT_SYSCLK/dvsr;
+    brdi = sysclk/dvsr;
 
     /* fractional part of the baudrate */
-    remd = UART_DFLT_SYSCLK - dvsr * brdi;
+    remd = sysclk - dvsr * brdi;
     brdf = ((remd << 6u) + (dvsr >> 1))/dvsr;
 
     uart0->IBRD = (uint16_t)(brdi & 0xffffu);
@@ -145,10 +124,9 @@ void uart_init(uint32_t baudrate)
 {
 
     uart_disable();
-    set_clk_uart0();
+    sysctl_periph_clk_enable(UART0_BASE);
     uart_set_baudrate(baudrate);
     uart_set_example_line_ctrls();
-    uart_irq_enable(UART_RX_IRQ);
     uart_enable();
 }
 
@@ -206,11 +184,11 @@ void uart0_irq_handler(void)
         {
             uart_tx_byte('\n');
         }
-        else if(c == '\177')
+        else if(c == '\b')
         {
-            // handle backspace '\177' by moving
-            // one space to the left via '\b'
-            uart_tx_byte('\b');
+            // TODO: Figure out how to handle backspace
+            // for now send X (which isn't working)
+            uart_tx_byte('X');
         }
         else
         {
