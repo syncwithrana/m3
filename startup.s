@@ -25,7 +25,7 @@ _vector_table:
     .word Default_Handler  /* DebugMon */
     .word 0
     .word Default_Handler  /* PendSV */
-    .word Default_Handler  /* SysTick */
+    .word SysTick_Handler  /* SysTick */
 
     /* External interrupts (not used yet) */
     .rept 32
@@ -38,6 +38,12 @@ _vector_table:
     .thumb_func
 Default_Handler:
     b .
+
+	.global SysTick_Handler
+	.thumb_func
+SysTick_Handler:
+    b SysTick_Handler_C
+
 
 /* -----------------------------------------------------------
  * Reset Handler
