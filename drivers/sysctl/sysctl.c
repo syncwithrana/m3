@@ -6,9 +6,6 @@
 #define FREQ_30KHZ 30000u
 #define FREQ_32KHZ 32000u
 
-/* System Control register map structure.
- * Refer: http://www.ti.com/lit/ds/symlink/lm3s6965.pdf Table 5-7
- */
 typedef struct __attribute__((packed)){
     uint32_t DID0;              // 0x000 Device Identification 0
     uint32_t DID1;              // 0x004 Device Identification 1
@@ -52,11 +49,6 @@ typedef struct __attribute__((packed)){
 
 static volatile sysctl_regs *sysctl = (sysctl_regs*)SYS_CTL_BASE;
 
-/* Possible values of the crystal frequency for the Main oscillator.
- * Refer: http://www.ti.com/lit/ds/symlink/lm3s6965.pdf 
- * Section 5.2.4.1 and Page 197.
- * Register RCC can be configured to aelect from among these crystal frequencies.
- */
 static const uint32_t xtal_freq[] = 
 {
     1000000,
@@ -77,11 +69,6 @@ static const uint32_t xtal_freq[] =
     8192000    
 };
 
-/* The puropse of this function is to poll for the PLL lock interrupt
- * for a count of SYSCTL_PLLLOCK_DELAY. Depending on the interrupt or 
- * the count hitting zero (whatever happens earlier) we exit.
- */
-
 static inline void sysctl_wait_pll_lock(void)
 {
     uint32_t wait = SYSCTL_PLLLOCK_DELAY; 
@@ -95,16 +82,8 @@ static inline void sysctl_wait_pll_lock(void)
 
         wait--;
     }
-
-    /* If we're here, it means the PLL lock interrupt wasn't
-     * set within the timeout SYSCTL_PLLLOCK_DELAY.
-     */
 }
 
-/* This is to introduce a delay of count. Note that we don't really have a 
- * timer in the system at this point - seeing as we are in the process building one - 
- * one  way to introduce delays is via counting up/down.
- */
 static void __attribute__((naked)) sysctl_delay(uint32_t count)
 {
     __asm__("subs r0, #1;"
@@ -113,21 +92,14 @@ static void __attribute__((naked)) sysctl_delay(uint32_t count)
            );
 }
 
-/* Now we come to the business end of this module - set the system clock.
- * Refer: http://www.ti.com/lit/ds/symlink/lm3s6965.pdf 
- * Section 5.3 for how to go about.
- */
 void sysctl_setclk(uint32_t cfg_rcc, uint32_t cfg_rcc2)
 {
     uint32_t tmp_rcc, tmp_rcc2;
     uint32_t osc_delay = SYSCTL_FAST_OSCDELAY;
 
-    // Get the current values of RCC and RCC2
     tmp_rcc = sysctl->RCC;
     tmp_rcc2 = sysctl->RCC2;
     
-
-    // set BYPASS (bypass PLL) and clear USESYSDIV
     tmp_rcc |= SYSCTL_RCC_BYPASS;
     tmp_rcc &= ~(SYSCTL_RCC_USESYSDIV);
     tmp_rcc2 |= SYSCTL_RCC2_BYPASS2;
@@ -135,20 +107,14 @@ void sysctl_setclk(uint32_t cfg_rcc, uint32_t cfg_rcc2)
     sysctl->RCC = tmp_rcc;
     sysctl->RCC2 = tmp_rcc2;
 
-    // check if MOSC or IOSC need turning on.
     if(((tmp_rcc & SYSCTL_RCC_IOSCDIS) != 0 && (cfg_rcc & SYSCTL_RCC_IOSCDIS) == 0) ||
        ((tmp_rcc & SYSCTL_RCC_MOSCDIS) != 0 && (cfg_rcc & SYSCTL_RCC_MOSCDIS) == 0))
     {
-        // turn on the required oscillators. Don't turn any off for now
         tmp_rcc &= (~(SYSCTL_RCC_IOSCDIS | SYSCTL_RCC_MOSCDIS) |
                     (cfg_rcc & (SYSCTL_RCC_IOSCDIS | SYSCTL_RCC_MOSCDIS)));
 
         sysctl->RCC = tmp_rcc;
 
-        /* Wait for the newly set oscillator(s) to settle.
-         * This wait time would depend on 
-         * the previous clock setting.
-         */
         if((tmp_rcc2 & SYSCTL_RCC2_USERCC2))
         {
             if(((tmp_rcc2 & SYSCTL_RCC2_OSCSRC2_MASK) == SYSCTL_RCC2_OSCSRC2_30KHZ) ||
@@ -169,7 +135,6 @@ void sysctl_setclk(uint32_t cfg_rcc, uint32_t cfg_rcc2)
         sysctl_delay(osc_delay);
     }
 
-    // Select the crystal value and oscillator source. Clear PWRDWN to enable PLL
     tmp_rcc &= ~(SYSCTL_RCC_XTAL_MASK| SYSCTL_RCC_OSCSRC_MASK);
     tmp_rcc |= cfg_rcc & (SYSCTL_RCC_XTAL_MASK | SYSCTL_RCC_OSCSRC_MASK);
 
@@ -182,18 +147,13 @@ void sysctl_setclk(uint32_t cfg_rcc, uint32_t cfg_rcc2)
     tmp_rcc2 &= ~(SYSCTL_RCC2_PWRDN2);
     tmp_rcc2 |= cfg_rcc2 & SYSCTL_RCC2_PWRDN2;
 
-    //Clear the PLL lock interrupt
     sysctl->MISC |= SYSTCL_MISC_PLLIM;
     
     sysctl->RCC = tmp_rcc;
     sysctl->RCC2 = tmp_rcc2;
 
-    //delay to ensure new crystal and oscillator source take effect.
     sysctl_delay(16);
 
-    /* Set the USESYSDIV bit in RCC and appropriately set the system divider.
-     * Disable the unused oscillator.
-     */
     tmp_rcc &= ~(SYSCTL_RCC_USESYSDIV | SYSCTL_RCC_SYSDIV_MASK |
                   SYSCTL_RCC_IOSCDIS | SYSCTL_RCC_IOSCDIS);
     tmp_rcc |= cfg_rcc & (SYSCTL_RCC_USESYSDIV | SYSCTL_RCC_SYSDIV_MASK |
@@ -205,10 +165,8 @@ void sysctl_setclk(uint32_t cfg_rcc, uint32_t cfg_rcc2)
     sysctl->RCC = tmp_rcc;
     sysctl->RCC2 = tmp_rcc2;
 
-    // Enable the use of PLL by clearing the BYPASS
     if((cfg_rcc & SYSCTL_RCC_BYPASS) == 0)
     {
-        // Waiting for the PLL to acquire a lock - poll for PLLRIS
         sysctl_wait_pll_lock();
 
         tmp_rcc  &= ~(SYSCTL_RCC_BYPASS); 
@@ -218,25 +176,17 @@ void sysctl_setclk(uint32_t cfg_rcc, uint32_t cfg_rcc2)
     sysctl->RCC = tmp_rcc;
     sysctl->RCC2 = tmp_rcc2;
 
-    //delay to ensure system divider takes effect.
     sysctl_delay(16);
                     
 }
 
-/* This is function is for finding the system clock frequency.
- * Helps with setting time-periods/time-outs.
- * Refer: http://www.ti.com/lit/ds/symlink/lm3s6965.pdf 
- * Section 5-5 Pages 195-201
- */
 uint32_t sysctl_getclk(void)
 {
     uint32_t tmp_rcc, tmp_rcc2, tmp_pllcfg, clk_rt;
 
-    // Read from the config registers RCC/RCC2
     tmp_rcc = sysctl->RCC;
     tmp_rcc2 = sysctl->RCC2;
 
-    // determin the oscillator used (and if RCC2 overrides RCC)
     switch((tmp_rcc2 & SYSCTL_RCC2_USERCC2) ?
            (tmp_rcc2 & SYSCTL_RCC2_OSCSRC2_MASK) :
            (tmp_rcc & SYSCTL_RCC_OSCSRC_MASK))
@@ -270,24 +220,16 @@ uint32_t sysctl_getclk(void)
 
     }
 
-    // check if BYPASS is off, if it is, find the PLL frequency
     if(((tmp_rcc2 & SYSCTL_RCC2_USERCC2) != 0 && (tmp_rcc2 & SYSCTL_RCC2_BYPASS2) == 0) ||
        ((tmp_rcc2 & SYSCTL_RCC2_USERCC2) == 0 && (tmp_rcc & SYSCTL_RCC_BYPASS) == 0))
     {
-        // Read PLLCFG to find the Fvalue and RValue
         tmp_pllcfg = sysctl->PLLCFG;
         
-        // Compute PLLFreq = OSCFreq * F / (R + 1)
         clk_rt = clk_rt * 
                 ((tmp_pllcfg & SYSCTL_PLLCFG_FVAL_MASK) >> SYSCTL_PLLCFG_FVAL_SHIFT) / 
                 (((tmp_pllcfg & SYSCTL_PLLCFG_RVAL_MASK) >> SYSCTL_PLLCFG_RVAL_SHIFT) + 1);
     }
 
-    /* apply the SYSDIV value to compute the frequency of the system clock.
-     * if BYPASS is OFF, then PLL is ON, which means the PLL frequency computed earlier
-     * must be divided by 2 (Refer:  http://www.ti.com/lit/ds/symlink/lm3s6965.pdf 
-     * Section 5.2.4.2. Apply the appropriate SYSDIV factor - as in Table 5-5 and Table 5-6
-     */
     if(tmp_rcc & SYSCTL_RCC_USESYSDIV)
     {
         if((tmp_rcc2 & SYSCTL_RCC2_USERCC2))
@@ -317,10 +259,6 @@ uint32_t sysctl_getclk(void)
     return (clk_rt);
 }
 
-/* This function helps us enable clocking for a peripheral whose 
- * base address is passed as a parameter. This is done by appropriatley configuring
- * RCGC1. Refer: http://www.ti.com/lit/ds/symlink/lm3s6965.pdf Section 5-5 Pages 220-222
- */
 void sysctl_periph_clk_enable(uint32_t periph)
 {
     switch(periph)
@@ -337,5 +275,4 @@ void sysctl_periph_clk_enable(uint32_t periph)
         default:
             break;
     }
-
 }
