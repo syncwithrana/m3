@@ -1,3 +1,12 @@
+/* test_systick.c
+ *
+ * Demonstrates SysTick configuration and periodic tick printing.
+ * This test enables interrupts, configures system clock, programs
+ * the SysTick reload period (500 ms), and starts the timer. It is
+ * intended for QEMU or a development board — it performs blocking
+ * prints and does not return.
+ */
+
 #include <stdint.h>
 #include "irq.h"
 #include "nvic.h"

@@ -1,6 +1,14 @@
 #ifndef __LM3S6965_MEMMAP_H__
 #define __LM3S6965_MEMMAP_H__
 
+/* lm3s6965_memmap.h
+ *
+ * Memory map and peripheral base addresses for the TI Stellaris LM3S6965.
+ * These definitions are strictly hardware-dependent and must match the
+ * MCU's datasheet and the linker script. Do not change these values
+ * unless you fully understand the target device memory map.
+ */
+
 #define FIRM_PERIPHERALS_BASE    0x40000000u
 #define WATCHDOG_TIMER_BASE     ((FIRM_PERIPHERALS_BASE) + 0x00000000u)
 #define GPIO_PORTA_BASE         ((FIRM_PERIPHERALS_BASE) + 0x00004000u)

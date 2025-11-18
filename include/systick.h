@@ -1,3 +1,10 @@
+/* systick.h
+ *
+ * SysTick helper definitions and API. These constants (control bits,
+ * reload masks) match the Cortex-M SysTick peripheral and are reused by
+ * the driver in `drivers/systick/systick.c`.
+ */
+
 #ifndef __SYSTICK_H__
 #define __SYSTICK_H__
 

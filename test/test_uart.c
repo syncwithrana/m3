@@ -1,3 +1,11 @@
+/* test_uart.c
+ *
+ * Simple UART echo test. Initializes the UART and then repeatedly reads
+ * lines from the serial input and echoes them back. This program is a
+ * minimal interactive demo and blocks on IO — it is suitable for QEMU
+ * or a debug board session.
+ */
+
 #include "irq.h"
 #include "nvic.h"
 #include "uart_drv.h"

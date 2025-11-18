@@ -1,5 +1,12 @@
-/* This linkerscript is derived from the memory layout of TI Stellaris LM3S6965
- * Refer Refer: http://www.ti.com/lit/ds/symlink/lm3s6965.pdf Table 2-4
+/*
+ * Linker script for LM3S6965: flash and SRAM region layout.
+ *
+ * This script places the vector table and startup code in flash and
+ * arranges data/bss in SRAM. It is tightly coupled to the chip memory
+ * sizes and must be adjusted when changing target device or RAM/Flash
+ * layout.
+ *
+ * Derived from the LM3S6965 datasheet memory map.
  */
 
 MEMORY {

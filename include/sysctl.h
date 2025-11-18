@@ -1,3 +1,12 @@
+/* sysctl.h
+ *
+ * System control constants and prototypes for the LM3S6965.
+ *
+ * These macros map to RCC/RCC2/PLL/clock configuration bits and are
+ * strongly hardware-dependent. Do not reuse this header for a different
+ * MCU without verifying the register layout and bit meanings.
+ */
+
 #ifndef __SYSCTL_H__
 #define __SYSCTL_H__
 

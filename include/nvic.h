@@ -1,3 +1,14 @@
+/* nvic.h
+ *
+ * Vector number definitions and NVIC helper prototypes for the LM3S6965.
+ *
+ * The vector numbers are the integer index into the Cortex-M vector
+ * table (exception + IRQ). Use the `nvic_irq_enable/disable` APIs to
+ * enable or disable interrupts by passing the vector number constant
+ * (e.g., `IRQ_UART0`). These functions perform memory-mapped writes to
+ * the NVIC enable/disable registers and are hardware-dependent.
+ */
+
 #include <stdint.h>
 
 #ifndef __NVIC_H__

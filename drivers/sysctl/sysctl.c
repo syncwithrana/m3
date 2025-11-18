@@ -6,6 +6,15 @@
 #define FREQ_30KHZ 30000u
 #define FREQ_32KHZ 32000u
 
+/* System control register block for LM3S6965.
+ *
+ * Machine-dependent notes:
+ * - The offsets and register meanings come directly from the MCU
+ *   datasheet. If you port this code to a different MCU family, the
+ *   base address and the register layout must be updated accordingly.
+ * - The struct uses `packed` to avoid unexpected padding that would
+ *   shift register offsets.
+ */
 typedef struct __attribute__((packed)){
     uint32_t DID0;              // 0x000 Device Identification 0
     uint32_t DID1;              // 0x004 Device Identification 1
@@ -69,13 +78,29 @@ static const uint32_t xtal_freq[] =
     8192000    
 };
 
+/*
+ * Wait for the PLL to indicate lock via the Raw Interrupt Status register.
+ *
+ * Notes:
+ * - The implementation polls the `RIS` register for the PLL lock flag.
+ * - A timeout counter is used to avoid infinite loops in case the PLL
+ *   never locks. The `SYSCTL_PLLLOCK_DELAY` symbol controls the timeout.
+ * - There is an unusual assignment in the original loop condition; the
+ *   intent is to loop until `wait` reaches zero or the PLL locks. We
+ *   keep the polling behavior but document the expectation here. If the
+ *   timeout behavior needs to be adjusted, change the `SYSCTL_PLLLOCK_DELAY`
+ *   constant in the header.
+ */
 static inline void sysctl_wait_pll_lock(void)
 {
-    uint32_t wait = SYSCTL_PLLLOCK_DELAY; 
+    uint32_t wait = SYSCTL_PLLLOCK_DELAY;
 
-    while(wait = SYSCTL_PLLLOCK_DELAY)
+    /* Poll for PLL lock with a simple timeout. The exact timeout value
+     * is MCU- and board-specific; SYSCTL_PLLLOCK_DELAY should be chosen
+     * conservatively for your clock configuration. */
+    while (wait)
     {
-        if(sysctl->RIS & SYSTCL_RIS_PLLRIS)
+        if (sysctl->RIS & SYSTCL_RIS_PLLRIS)
         {
             return;
         }
@@ -84,6 +109,16 @@ static inline void sysctl_wait_pll_lock(void)
     }
 }
 
+/*
+ * Simple cycle-counting delay implemented in naked assembly.
+ *
+ * Usage notes:
+ * - This busy-wait reduces high-level jitter but is sensitive to
+ *   compiler/optimization changes which is why it is in assembly.
+ * - The delay time in real seconds depends on CPU clock rate; this
+ *   helper is intended for short delays during clock switching where
+ *   precise timing is not required.
+ */
 static void __attribute__((naked)) sysctl_delay(uint32_t count)
 {
     __asm__("subs r0, #1;"
@@ -96,6 +131,20 @@ void sysctl_setclk(uint32_t cfg_rcc, uint32_t cfg_rcc2)
 {
     uint32_t tmp_rcc, tmp_rcc2;
     uint32_t osc_delay = SYSCTL_FAST_OSCDELAY;
+
+    /*
+     * Configure system clock selection and PLL settings.
+     *
+     * This routine programs the RCC/RCC2 registers according to the
+     * requested config values, toggling bypass and power-down bits as
+     * required. The sequence follows the hardware recommended steps to
+     * safely switch oscillator sources and engage the PLL.
+     *
+     * Important (machine-dependent): The exact meaning of bits in
+     * RCC/RCC2 (XTAL, OSCSRC, SYSDIV, BYPASS, etc.) are device-specific.
+     * Verify `cfg_rcc`/`cfg_rcc2` are constructed using constants from
+     * `include/sysctl.h` that match your target MCU.
+     */
 
     tmp_rcc = sysctl->RCC;
     tmp_rcc2 = sysctl->RCC2;
@@ -184,6 +233,15 @@ uint32_t sysctl_getclk(void)
 {
     uint32_t tmp_rcc, tmp_rcc2, tmp_pllcfg, clk_rt;
 
+    /*
+     * Return the current system clock frequency in Hz.
+     *
+     * This reads RCC/RCC2 and PLLCFG to calculate the effective CPU
+     * clock, taking into account oscillator source, PLL multiplication,
+     * and system dividers. The calculation mirrors the logic in the
+     * MCU reference manual.
+     */
+
     tmp_rcc = sysctl->RCC;
     tmp_rcc2 = sysctl->RCC2;
 
@@ -261,6 +319,15 @@ uint32_t sysctl_getclk(void)
 
 void sysctl_periph_clk_enable(uint32_t periph)
 {
+    /*
+     * Enable run-mode clock gating for a peripheral.
+     *
+     * Parameter `periph` is expected to be the peripheral base address
+     * constant (e.g., UART0_BASE). This function maps base-address
+     * identifiers to the corresponding RCGC bit(s). Only a small set
+     * of peripherals are supported here; add new cases if you enable
+     * more peripherals in other drivers.
+     */
     switch(periph)
     {
         case UART0_BASE:

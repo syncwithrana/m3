@@ -1,9 +1,23 @@
 #include <stdint.h>
 
-/* Linker symbols for TI Stellaris LM3S6965 
- * defining start/end of various sections
- * using long as ANSI C guarentees long to be at least 4 bytes (32-bits))
+/*
+ * Startup and vector table for the LM3S6965.
+ *
+ * This file provides:
+ *  - weak default handlers for exceptions/IRQs
+ *  - the `._exceptions` vector table placed in the `.vectors` section
+ *  - a Reset handler which copies initialized data from flash to SRAM
+ *    and clears the BSS before calling main().
+ *
+ * Machine-dependent notes:
+ * - The exact vector table layout (number of entries and IRQ order)
+ *   follows the Cortex-M/LM3S6965 hardware specification. Do not
+ *   reorder entries unless you understand the implications.
  */
+
+/* Linker symbols for TI Stellaris LM3S6965 defining start/end of various
+ * sections. These symbols are created by the linker script and are
+ * required by the Reset handler to initialize data/bss. */
 extern uint32_t _flash_sdata;
 extern uint32_t _sram_sdata;
 extern uint32_t _sram_edata;
