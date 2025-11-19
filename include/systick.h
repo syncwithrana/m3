@@ -8,23 +8,25 @@
 #ifndef __SYSTICK_H__
 #define __SYSTICK_H__
 
-#define STCTRL_ENABLE           0x00000001u
-#define STCTRL_INTEN            0x00000002u
-#define STCTRL_CLKSRC           0x00000004u
-#define STCTRL_COUNT            0x00010000u
+/* Compatibility wrapper: forward to `timer.h`. New code should include
+ * `timer.h` directly and prefer the `TIMER_*` names. These aliases are
+ * kept to avoid breaking code that still uses `systick.h` or `ST*` names.
+ */
 
-#define STRELOAD_MASK           0x00FFFFFFu
-#define STCURRENT_MASK          0x00FFFFFFu
+#include "timer.h"
+
+/* Legacy aliases */
+#define STCTRL_ENABLE      TIMER_CTRL_ENABLE
+#define STCTRL_INTEN       TIMER_CTRL_INTEN
+#define STCTRL_CLKSRC      TIMER_CTRL_CLKSRC
+#define STCTRL_COUNT       TIMER_CTRL_COUNT
+
+#define STRELOAD_MASK      TIMER_RELOAD_MASK
+#define STCURRENT_MASK     TIMER_CURRENT_MASK
 
 #define SYSTICK_2_IRQS_PER_SEC  2u
 #define SYSTICK_4_IRQS_PER_SEC  4u
 #define SYSTICK_8_IRQS_PER_SEC  8u
 #define SYSTICK_16_IRQS_PER_SEC 16u
-
-void systick_enable(void);
-void systick_disable(void);
-void systick_irq_enable(void);
-void systick_irq_disable(void);
-void systick_set_period_ms(uint32_t millisec);
 
 #endif /* __SYSTICK_H__ */

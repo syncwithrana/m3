@@ -50,15 +50,16 @@ typedef struct __attribute__ ((packed)){
     uint32_t PRI9;                  // 0x324 Interrupt 36-39 Priority
     uint32_t PRI10;                 // 0x328 Interrupt 40-43 Priority
 } nvic_regs;
+typedef nvic_regs irqc_regs;
 
 /* Pointer to the NVIC register block. Declared `volatile` because
  * the hardware can change these values asynchronously (e.g., pending
  * bits, active bits). Casting from the base constant ties the C
  * representation to the correct memory-mapped address.
  */
-static volatile nvic_regs *nvic = (nvic_regs *)NVIC_BASE;
+static volatile irqc_regs *irq_controller = (irqc_regs *)NVIC_BASE;
 
-void nvic_irq_enable(uint32_t vector_num)
+void irq_enable(uint32_t vector_num)
 {
     /*
      * Enable NVIC interrupt for the given vector number.
@@ -77,11 +78,11 @@ void nvic_irq_enable(uint32_t vector_num)
      */
     /* Interrupts 0-31 enabled via EN0 */
     if (vector_num >= IRQ_GPIOA && vector_num <= IRQ_ADC0_SEQ1) {
-        nvic->EN0 |= (1u << (vector_num - IRQ_GPIOA));
+        irq_controller->EN0 |= (1u << (vector_num - IRQ_GPIOA));
     }
     /* Interrupts 32-43 enabled via EN1 */
     else if (vector_num >= IRQ_ADC0_SEQ2 && vector_num <= IRQ_HIBERNATE) {
-        nvic->EN1 |= (1u << (vector_num - IRQ_ADC0_SEQ2));
+        irq_controller->EN1 |= (1u << (vector_num - IRQ_ADC0_SEQ2));
     }
 
 }
@@ -92,14 +93,14 @@ void nvic_irq_disable(uint32_t vector_num)
      * Disable NVIC interrupt for the given vector number.
      *
      * This writes to the DISx register which clears the corresponding
-     * enable bit. The semantics mirror `nvic_irq_enable`.
+     * enable bit. The semantics mirror `irq_enable`.
      */
     /* Interrupts 0-31 disabled via DIS0 */
     if (vector_num >= IRQ_GPIOA && vector_num <= IRQ_ADC0_SEQ1) {
-        nvic->DIS0 |= (1u << (vector_num - IRQ_GPIOA));
+        irq_controller->DIS0 |= (1u << (vector_num - IRQ_GPIOA));
     }
     /* Interrupts 32-43 disabled via DIS1 */
     else if (vector_num >= IRQ_ADC0_SEQ2 && vector_num <= IRQ_HIBERNATE) {
-        nvic->DIS1 |= (1u << (vector_num - IRQ_ADC0_SEQ2));
+        irq_controller->DIS1 |= (1u << (vector_num - IRQ_ADC0_SEQ2));
     }
 }

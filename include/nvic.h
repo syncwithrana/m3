@@ -3,7 +3,7 @@
  * Vector number definitions and NVIC helper prototypes for the LM3S6965.
  *
  * The vector numbers are the integer index into the Cortex-M vector
- * table (exception + IRQ). Use the `nvic_irq_enable/disable` APIs to
+ * table (exception + IRQ). Use the `irq_enable/irq_disable` APIs to
  * enable or disable interrupts by passing the vector number constant
  * (e.g., `IRQ_UART0`). These functions perform memory-mapped writes to
  * the NVIC enable/disable registers and are hardware-dependent.
@@ -68,7 +68,7 @@
 #define IRQ_ETH             58u         // Ethernet Controller
 #define IRQ_HIBERNATE       59u         // Hibernate Module
 
-void nvic_irq_enable(uint32_t vector_num);
-void nvic_irq_disable(uint32_t vector_num);
+void irq_enable(uint32_t vector_num);
+void irq_disable(uint32_t vector_num);
 
 #endif /* __NVIC_H__ */

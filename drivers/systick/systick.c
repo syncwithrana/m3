@@ -1,9 +1,9 @@
 #include <stdint.h>
 #include "lm3s6965_memmap.h"
 #include "sysctl.h"
-#include "systick.h"
-#include "uart_drv.h"
-#include "serial_print.h"
+#include "timer.h"
+#include "comms_drv.h"
+#include "console.h"
 
 /* SysTick timer driver
  *
@@ -29,42 +29,42 @@ typedef struct __attribute__((packed))  {
 static volatile systick_regs *systick = (systick_regs*)SYS_TIMER_BASE;
 static volatile uint32_t tick_count = 0;
 
-/* Public API: enable the SysTick timer with processor clock source. */
-void systick_enable(void)   {
-    systick->STCTRL |= STCTRL_CLKSRC | STCTRL_ENABLE;
+/* Public API: enable the timer with processor clock source. */
+void timer_enable(void)   {
+    systick->STCTRL |= TIMER_CTRL_CLKSRC | TIMER_CTRL_ENABLE;
 }
 
-/* Public API: disable SysTick. */
-void systick_disable(void)  {
-    systick->STCTRL &= ~(STCTRL_ENABLE);
+/* Public API: disable timer. */
+void timer_disable(void)  {
+    systick->STCTRL &= ~(TIMER_CTRL_ENABLE);
 }
 
-/* Public API: enable SysTick exception/interrupt. */
-void systick_irq_enable(void)   {
-    systick->STCTRL |= STCTRL_INTEN; 
+/* Public API: enable timer exception/interrupt. */
+void timer_irq_enable(void)   {
+    systick->STCTRL |= TIMER_CTRL_INTEN; 
 }
 
-/* Public API: disable SysTick exception/interrupt. */
-void systick_irq_disable(void)  {
-    systick->STCTRL &= ~(STCTRL_INTEN);
+/* Public API: disable timer exception/interrupt. */
+void timer_irq_disable(void)  {
+    systick->STCTRL &= ~(TIMER_CTRL_INTEN);
 }
 
 /* Convert milliseconds to a SysTick reload value.
  *
- * Note: The calculation uses `sysctl_getclk()` which returns the CPU
+ * Note: The calculation uses `clock_get_hz()` which returns the CPU
  * clock in Hz. Careful: (sysclk/1000) * millisec can overflow for large
  * values on 32-bit math. This is intended for reasonable millisecond
  * ranges (e.g., < a few million). If you need very large intervals,
  * consider using a 64-bit intermediate or splitting the timer.
  */
-static uint32_t systick_millisec_to_timer_period(uint32_t millisec) {
-    uint32_t period = (sysctl_getclk()/1000u) * millisec;
+static uint32_t timer_ms_to_reload(uint32_t millisec) {
+    uint32_t period = (clock_get_hz()/1000u) * millisec;
     return period;
 }
 
-/* Set the SysTick reload count using milliseconds. */
-void systick_set_period_ms(uint32_t millisec)   {
-    uint32_t count = systick_millisec_to_timer_period(millisec);
+/* Set the timer reload count using milliseconds. */
+void timer_set_period_ms(uint32_t millisec)   {
+    uint32_t count = timer_ms_to_reload(millisec);
     systick->STRELOAD = count;
 }
 
@@ -75,7 +75,7 @@ void _SysTick_Handler(void) {
     tick_count++;
     if(tick_count % 20u == 0)
     {
-        serial_put_uint(tick_count);
-        serial_puts(" time ticks have elapsed!\n");
+        console_put_uint(tick_count);
+        console_puts(" time ticks have elapsed!\n");
     }
 }

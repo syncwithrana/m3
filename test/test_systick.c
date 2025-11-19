@@ -11,30 +11,30 @@
 #include "irq.h"
 #include "nvic.h"
 #include "sysctl.h"
-#include "systick.h"
-#include "uart_drv.h"
-#include "serial_print.h"
+#include "timer.h"
+#include "comms_drv.h"
+#include "console.h"
 
 int main(void)
 {
     irq_master_enable();
-    nvic_irq_enable(IRQ_UART0);
-    uart_init(UART_BAUD_115200);
+    irq_enable(IRQ_UART0);
+    comms_init(COMMS_BAUD_115200);
 
-    uint32_t clk_cfg1 = (SYSCTL_PLL_SYSCLK | SYSCTL_RCC_USESYSDIV | SYSCTL_RCC_SYSDIV_11 | 
-               SYSCTL_RCC_XTAL_8MHZ | SYSCTL_RCC_OSCSRC_MOSC | SYSCTL_RCC_IOSCDIS);
+    uint32_t clk_cfg1 = (CLK_PLL_SYSCLK | CLK_RCC_USESYSDIV | CLK_RCC_SYSDIV_11 | 
+               CLK_RCC_XTAL_8MHZ | CLK_RCC_OSCSRC_MOSC | CLK_RCC_IOSCDIS);
     uint32_t clk_cfg2 = 0;
     
-    serial_puts("Configuring system clock...: ");
-    serial_put_uint(clk_cfg1);
-    serial_putchar('\n');
+    console_puts("Configuring system clock...: ");
+    console_put_uint(clk_cfg1);
+    console_putc('\n');
 
-    sysctl_setclk(clk_cfg1, clk_cfg2);
-    systick_set_period_ms(500u);
-    systick_irq_enable();
-    systick_enable();
+    clock_set_config(clk_cfg1, clk_cfg2);
+    timer_set_period_ms(500u);
+    timer_irq_enable();
+    timer_enable();
 
-    serial_puts("System Initialized.\r\n");
+    console_puts("System Initialized.\r\n");
 
     while(1);
 

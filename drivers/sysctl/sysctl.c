@@ -54,9 +54,11 @@ typedef struct __attribute__((packed)){
     uint32_t DCGC2;             // 0x128 Deep Sleep Mode Clock Gating Control Register 2
     uint32_t reserved9[6];      // 0x12C-0x140 reserved
     uint32_t DSLPCLKCFG;         // 0x144 Deep Sleep Clock Configuration
-}sysctl_regs;
+} sysctl_regs;
 
-static volatile sysctl_regs *sysctl = (sysctl_regs*)SYS_CTL_BASE;
+typedef sysctl_regs clock_regs;
+
+static volatile clock_regs *clock = (clock_regs*)SYS_CTL_BASE;
 
 static const uint32_t xtal_freq[] = 
 {
@@ -84,23 +86,20 @@ static const uint32_t xtal_freq[] =
  * Notes:
  * - The implementation polls the `RIS` register for the PLL lock flag.
  * - A timeout counter is used to avoid infinite loops in case the PLL
- *   never locks. The `SYSCTL_PLLLOCK_DELAY` symbol controls the timeout.
+ *   never locks. The `CLK_PLLLOCK_DELAY` symbol controls the timeout.
  * - There is an unusual assignment in the original loop condition; the
  *   intent is to loop until `wait` reaches zero or the PLL locks. We
  *   keep the polling behavior but document the expectation here. If the
- *   timeout behavior needs to be adjusted, change the `SYSCTL_PLLLOCK_DELAY`
+ *   timeout behavior needs to be adjusted, change the `CLK_PLLLOCK_DELAY`
  *   constant in the header.
  */
-static inline void sysctl_wait_pll_lock(void)
+static inline void clock_wait_pll_lock(void)
 {
-    uint32_t wait = SYSCTL_PLLLOCK_DELAY;
+    uint32_t wait = CLK_PLLLOCK_DELAY;
 
-    /* Poll for PLL lock with a simple timeout. The exact timeout value
-     * is MCU- and board-specific; SYSCTL_PLLLOCK_DELAY should be chosen
-     * conservatively for your clock configuration. */
     while (wait)
     {
-        if (sysctl->RIS & SYSTCL_RIS_PLLRIS)
+        if (clock->RIS & CLK_RIS_PLLRIS)
         {
             return;
         }
@@ -119,18 +118,18 @@ static inline void sysctl_wait_pll_lock(void)
  *   helper is intended for short delays during clock switching where
  *   precise timing is not required.
  */
-static void __attribute__((naked)) sysctl_delay(uint32_t count)
+static void __attribute__((naked)) clock_delay(uint32_t count)
 {
     __asm__("subs r0, #1;"
-            "bne sysctl_delay;"
+            "bne clock_delay;"
             "bx lr;"
            );
 }
 
-void sysctl_setclk(uint32_t cfg_rcc, uint32_t cfg_rcc2)
+void clock_set_config(uint32_t cfg_rcc, uint32_t cfg_rcc2)
 {
     uint32_t tmp_rcc, tmp_rcc2;
-    uint32_t osc_delay = SYSCTL_FAST_OSCDELAY;
+    uint32_t osc_delay = CLK_FAST_OSCDELAY;
 
     /*
      * Configure system clock selection and PLL settings.
@@ -146,90 +145,90 @@ void sysctl_setclk(uint32_t cfg_rcc, uint32_t cfg_rcc2)
      * `include/sysctl.h` that match your target MCU.
      */
 
-    tmp_rcc = sysctl->RCC;
-    tmp_rcc2 = sysctl->RCC2;
+    tmp_rcc = clock->RCC;
+    tmp_rcc2 = clock->RCC2;
     
-    tmp_rcc |= SYSCTL_RCC_BYPASS;
-    tmp_rcc &= ~(SYSCTL_RCC_USESYSDIV);
-    tmp_rcc2 |= SYSCTL_RCC2_BYPASS2;
+    tmp_rcc |= CLK_RCC_BYPASS;
+    tmp_rcc &= ~(CLK_RCC_USESYSDIV);
+    tmp_rcc2 |= CLK_RCC2_BYPASS2;
 
-    sysctl->RCC = tmp_rcc;
-    sysctl->RCC2 = tmp_rcc2;
+    clock->RCC = tmp_rcc;
+    clock->RCC2 = tmp_rcc2;
 
-    if(((tmp_rcc & SYSCTL_RCC_IOSCDIS) != 0 && (cfg_rcc & SYSCTL_RCC_IOSCDIS) == 0) ||
-       ((tmp_rcc & SYSCTL_RCC_MOSCDIS) != 0 && (cfg_rcc & SYSCTL_RCC_MOSCDIS) == 0))
+     if(((tmp_rcc & CLK_RCC_IOSCDIS) != 0 && (cfg_rcc & CLK_RCC_IOSCDIS) == 0) ||
+         ((tmp_rcc & CLK_RCC_MOSCDIS) != 0 && (cfg_rcc & CLK_RCC_MOSCDIS) == 0))
     {
-        tmp_rcc &= (~(SYSCTL_RCC_IOSCDIS | SYSCTL_RCC_MOSCDIS) |
-                    (cfg_rcc & (SYSCTL_RCC_IOSCDIS | SYSCTL_RCC_MOSCDIS)));
+        tmp_rcc &= (~(CLK_RCC_IOSCDIS | CLK_RCC_MOSCDIS) |
+                (cfg_rcc & (CLK_RCC_IOSCDIS | CLK_RCC_MOSCDIS)));
 
-        sysctl->RCC = tmp_rcc;
+        clock->RCC = tmp_rcc;
 
-        if((tmp_rcc2 & SYSCTL_RCC2_USERCC2))
+        if((tmp_rcc2 & CLK_RCC2_USERCC2))
         {
-            if(((tmp_rcc2 & SYSCTL_RCC2_OSCSRC2_MASK) == SYSCTL_RCC2_OSCSRC2_30KHZ) ||
-               ((tmp_rcc2 & SYSCTL_RCC2_OSCSRC2_MASK) == SYSCTL_RCC2_OSCSRC2_32KHZ))
+                if(((tmp_rcc2 & CLK_RCC2_OSCSRC2_MASK) == CLK_RCC2_OSCSRC2_30KHZ) ||
+                    ((tmp_rcc2 & CLK_RCC2_OSCSRC2_MASK) == CLK_RCC2_OSCSRC2_32KHZ))
             {
-                osc_delay = SYSCTL_SLOW_OSCDELAY;
+                osc_delay = CLK_SLOW_OSCDELAY;
             }
         }
         else
         {
-            if((tmp_rcc & SYSCTL_RCC_OSCSRC_MASK) == SYSCTL_RCC_OSCSRC_30KHZ) 
+            if((tmp_rcc & CLK_RCC_OSCSRC_MASK) == CLK_RCC_OSCSRC_30KHZ) 
             {
-                osc_delay = SYSCTL_SLOW_OSCDELAY;
+                osc_delay = CLK_SLOW_OSCDELAY;
             }
            
         }
 
-        sysctl_delay(osc_delay);
+        clock_delay(osc_delay);
     }
 
-    tmp_rcc &= ~(SYSCTL_RCC_XTAL_MASK| SYSCTL_RCC_OSCSRC_MASK);
-    tmp_rcc |= cfg_rcc & (SYSCTL_RCC_XTAL_MASK | SYSCTL_RCC_OSCSRC_MASK);
+    tmp_rcc &= ~(CLK_RCC_XTAL_MASK| CLK_RCC_OSCSRC_MASK);
+    tmp_rcc |= cfg_rcc & (CLK_RCC_XTAL_MASK | CLK_RCC_OSCSRC_MASK);
 
-    tmp_rcc2 &= ~(SYSCTL_RCC2_USERCC2 | SYSCTL_RCC2_OSCSRC2_MASK);
-    tmp_rcc2 |= cfg_rcc2 & (SYSCTL_RCC2_USERCC2 | SYSCTL_RCC2_OSCSRC2_MASK);
+    tmp_rcc2 &= ~(CLK_RCC2_USERCC2 | CLK_RCC2_OSCSRC2_MASK);
+    tmp_rcc2 |= cfg_rcc2 & (CLK_RCC2_USERCC2 | CLK_RCC2_OSCSRC2_MASK);
 
-    tmp_rcc &= ~(SYSCTL_RCC_PWRDN);
-    tmp_rcc |= cfg_rcc & SYSCTL_RCC_PWRDN;
+    tmp_rcc &= ~(CLK_RCC_PWRDN);
+    tmp_rcc |= cfg_rcc & CLK_RCC_PWRDN;
 
-    tmp_rcc2 &= ~(SYSCTL_RCC2_PWRDN2);
-    tmp_rcc2 |= cfg_rcc2 & SYSCTL_RCC2_PWRDN2;
+    tmp_rcc2 &= ~(CLK_RCC2_PWRDN2);
+    tmp_rcc2 |= cfg_rcc2 & CLK_RCC2_PWRDN2;
 
-    sysctl->MISC |= SYSTCL_MISC_PLLIM;
+    clock->MISC |= CLK_MISC_PLLIM;
     
-    sysctl->RCC = tmp_rcc;
-    sysctl->RCC2 = tmp_rcc2;
+    clock->RCC = tmp_rcc;
+    clock->RCC2 = tmp_rcc2;
 
-    sysctl_delay(16);
+    clock_delay(16);
 
-    tmp_rcc &= ~(SYSCTL_RCC_USESYSDIV | SYSCTL_RCC_SYSDIV_MASK |
-                  SYSCTL_RCC_IOSCDIS | SYSCTL_RCC_IOSCDIS);
-    tmp_rcc |= cfg_rcc & (SYSCTL_RCC_USESYSDIV | SYSCTL_RCC_SYSDIV_MASK |
-                  SYSCTL_RCC_IOSCDIS | SYSCTL_RCC_IOSCDIS);
+    tmp_rcc &= ~(CLK_RCC_USESYSDIV | CLK_RCC_SYSDIV_MASK |
+                  CLK_RCC_IOSCDIS | CLK_RCC_IOSCDIS);
+    tmp_rcc |= cfg_rcc & (CLK_RCC_USESYSDIV | CLK_RCC_SYSDIV_MASK |
+                  CLK_RCC_IOSCDIS | CLK_RCC_IOSCDIS);
 
-    tmp_rcc2 &= ~(SYSCTL_RCC2_SYSDIV2_MASK);
-    tmp_rcc2 |= cfg_rcc2 & (SYSCTL_RCC2_SYSDIV2_MASK);
+    tmp_rcc2 &= ~(CLK_RCC2_SYSDIV2_MASK);
+    tmp_rcc2 |= cfg_rcc2 & (CLK_RCC2_SYSDIV2_MASK);
 
-    sysctl->RCC = tmp_rcc;
-    sysctl->RCC2 = tmp_rcc2;
+    clock->RCC = tmp_rcc;
+    clock->RCC2 = tmp_rcc2;
 
-    if((cfg_rcc & SYSCTL_RCC_BYPASS) == 0)
+    if((cfg_rcc & CLK_RCC_BYPASS) == 0)
     {
-        sysctl_wait_pll_lock();
+        clock_wait_pll_lock();
 
-        tmp_rcc  &= ~(SYSCTL_RCC_BYPASS); 
-        tmp_rcc2 &= ~(SYSCTL_RCC2_BYPASS2);
+        tmp_rcc  &= ~(CLK_RCC_BYPASS); 
+        tmp_rcc2 &= ~(CLK_RCC2_BYPASS2);
     }
 
-    sysctl->RCC = tmp_rcc;
-    sysctl->RCC2 = tmp_rcc2;
+    clock->RCC = tmp_rcc;
+    clock->RCC2 = tmp_rcc2;
 
-    sysctl_delay(16);
+    clock_delay(16);
                     
 }
 
-uint32_t sysctl_getclk(void)
+uint32_t clock_get_hz(void)
 {
     uint32_t tmp_rcc, tmp_rcc2, tmp_pllcfg, clk_rt;
 
@@ -242,35 +241,35 @@ uint32_t sysctl_getclk(void)
      * MCU reference manual.
      */
 
-    tmp_rcc = sysctl->RCC;
-    tmp_rcc2 = sysctl->RCC2;
+    tmp_rcc = clock->RCC;
+    tmp_rcc2 = clock->RCC2;
 
-    switch((tmp_rcc2 & SYSCTL_RCC2_USERCC2) ?
-           (tmp_rcc2 & SYSCTL_RCC2_OSCSRC2_MASK) :
-           (tmp_rcc & SYSCTL_RCC_OSCSRC_MASK))
+        switch((tmp_rcc2 & CLK_RCC2_USERCC2) ?
+            (tmp_rcc2 & CLK_RCC2_OSCSRC2_MASK) :
+            (tmp_rcc & CLK_RCC_OSCSRC_MASK))
     {
-        case SYSCTL_RCC_OSCSRC_MOSC:
+        case CLK_RCC_OSCSRC_MOSC:
         {
-            clk_rt = xtal_freq[(tmp_rcc & SYSCTL_RCC_XTAL_MASK) >> SYSCTL_RCC_XTAL_SHIFT];
+            clk_rt = xtal_freq[(tmp_rcc & CLK_RCC_XTAL_MASK) >> CLK_RCC_XTAL_SHIFT];
             break;
         }
 
-        case SYSCTL_RCC_OSCSRC_IOSC:
+        case CLK_RCC_OSCSRC_IOSC:
         {
             clk_rt = FREQ_12MHZ;
             break;
         }
-        case SYSCTL_RCC_OSCSRC_IOSC_DIV4:
+        case CLK_RCC_OSCSRC_IOSC_DIV4:
         {
             clk_rt = (FREQ_12MHZ)/4;
             break;
         }
-        case SYSCTL_RCC_OSCSRC_30KHZ:
+        case CLK_RCC_OSCSRC_30KHZ:
         {
             clk_rt = FREQ_30KHZ;
             break;
         }
-        case SYSCTL_RCC2_OSCSRC2_32KHZ:
+        case CLK_RCC2_OSCSRC2_32KHZ:
         {
             clk_rt = FREQ_32KHZ;
             break;
@@ -278,46 +277,46 @@ uint32_t sysctl_getclk(void)
 
     }
 
-    if(((tmp_rcc2 & SYSCTL_RCC2_USERCC2) != 0 && (tmp_rcc2 & SYSCTL_RCC2_BYPASS2) == 0) ||
-       ((tmp_rcc2 & SYSCTL_RCC2_USERCC2) == 0 && (tmp_rcc & SYSCTL_RCC_BYPASS) == 0))
-    {
-        tmp_pllcfg = sysctl->PLLCFG;
+     if(((tmp_rcc2 & CLK_RCC2_USERCC2) != 0 && (tmp_rcc2 & CLK_RCC2_BYPASS2) == 0) ||
+         ((tmp_rcc2 & CLK_RCC2_USERCC2) == 0 && (tmp_rcc & CLK_RCC_BYPASS) == 0))
+     {
+          tmp_pllcfg = clock->PLLCFG;
         
-        clk_rt = clk_rt * 
-                ((tmp_pllcfg & SYSCTL_PLLCFG_FVAL_MASK) >> SYSCTL_PLLCFG_FVAL_SHIFT) / 
-                (((tmp_pllcfg & SYSCTL_PLLCFG_RVAL_MASK) >> SYSCTL_PLLCFG_RVAL_SHIFT) + 1);
-    }
+          clk_rt = clk_rt * 
+                     ((tmp_pllcfg & CLK_PLLCFG_FVAL_MASK) >> CLK_PLLCFG_FVAL_SHIFT) / 
+                     (((tmp_pllcfg & CLK_PLLCFG_RVAL_MASK) >> CLK_PLLCFG_RVAL_SHIFT) + 1);
+     }
 
-    if(tmp_rcc & SYSCTL_RCC_USESYSDIV)
+    if(tmp_rcc & CLK_RCC_USESYSDIV)
     {
-        if((tmp_rcc2 & SYSCTL_RCC2_USERCC2))
+        if((tmp_rcc2 & CLK_RCC2_USERCC2))
         {
-            if((tmp_rcc2 & SYSCTL_RCC2_BYPASS2) == 0)
+            if((tmp_rcc2 & CLK_RCC2_BYPASS2) == 0)
             {
                 clk_rt = clk_rt/2;
             }
 
-            clk_rt = clk_rt / 
-                     (((tmp_rcc2 & SYSCTL_RCC2_SYSDIV2_MASK) >> 
-                      SYSCTL_RCC2_SYSDIV2_SHIFT) + 1);
+             clk_rt = clk_rt / 
+                 (((tmp_rcc2 & CLK_RCC2_SYSDIV2_MASK) >> 
+                  CLK_RCC2_SYSDIV2_SHIFT) + 1);
         }
         else 
         {
-            if((tmp_rcc & SYSCTL_RCC_BYPASS) == 0)
+            if((tmp_rcc & CLK_RCC_BYPASS) == 0)
             {
                 clk_rt = clk_rt/2;
             }
 
             clk_rt = clk_rt / 
-                     (((tmp_rcc & SYSCTL_RCC_SYSDIV_MASK) >> 
-                      SYSCTL_RCC_SYSDIV_SHIFT) + 1);
+                     (((tmp_rcc & CLK_RCC_SYSDIV_MASK) >> 
+                      CLK_RCC_SYSDIV_SHIFT) + 1);
         }
     }
 
     return (clk_rt);
 }
 
-void sysctl_periph_clk_enable(uint32_t periph)
+void clock_periph_enable(uint32_t periph)
 {
     /*
      * Enable run-mode clock gating for a peripheral.
@@ -331,13 +330,13 @@ void sysctl_periph_clk_enable(uint32_t periph)
     switch(periph)
     {
         case UART0_BASE:
-            sysctl->RCGC1 |= SYSCTL_RCGC1_UART0;
+            clock->RCGC1 |= CLK_RCGC1_UART0;
             break;
         case UART1_BASE:
-            sysctl->RCGC1 |= SYSCTL_RCGC1_UART1;
+            clock->RCGC1 |= CLK_RCGC1_UART1;
             break;
         case UART2_BASE:
-            sysctl->RCGC1 |= SYSCTL_RCGC1_UART2;
+            clock->RCGC1 |= CLK_RCGC1_UART2;
             break;
         default:
             break;

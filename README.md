@@ -21,7 +21,7 @@ Perfect for learning:
 │   ├── nvic/
 │   ├── sysctl/
 │   ├── systick/
-│   └── uart/
+│   └── comms/
 ├── include/           # Shared public headers
 ├── platform/          # Startup, vector table, linker script
 ├── test/              # Test apps for each module
@@ -84,23 +84,23 @@ include/<module>.h
 
 Tests live under `test/`.
 
-### **UART Driver**
+### **COMMS Driver (UART)**
 
 Files:
 
-* `drivers/uart/uart_drv.c`
-* `drivers/uart/serial_print.c`
+* `drivers/comms/comms_drv.c`
+* `drivers/comms/console.c` (console helpers)
 
 Features:
 
 * UART0 configuration
 * Baud rate setup
-* Basic transmit functions (`serial_putc`, `serial_puts`, `serial_put_uint`)
+* Basic transmit functions (`console_putc`, `console_puts`, `console_put_uint`)
 
 Test:
 
 ```
-test/test_uart.c
+test/test_comms.c
 ```
 
 ---
@@ -110,7 +110,7 @@ test/test_uart.c
 Files:
 
 * `drivers/systick/systick.c`
-* `include/systick.h`
+* `include/timer.h`
 
 Features:
 
@@ -146,14 +146,14 @@ test/test_irq.c
 
 ---
 
-### **SysCtl Driver**
+### **Clock / SysCtl Driver**
 
 Files:
 
 * `drivers/sysctl/sysctl.c`
 * `include/sysctl.h`
 
-Provides clock access for UART/SysTick.
+Provides clock access for COMMS/SysTick.
 
 ---
 
@@ -189,7 +189,7 @@ Each test is a standalone `main()` that builds only the required drivers.
 
 Examples:
 
-* `test_uart.c` → UART printing
+* `test_comms.c` → COMMS (UART) printing
 * `test_systick.c` → SysTick handler + timer demo
 * `test_irq.c` → NVIC enable/disable
 
@@ -203,8 +203,8 @@ Modules may depend on other modules.
 
 Examples:
 
-* **systick** needs: systick + uart + nvic + sysctl
-* **irq** needs: nvic + uart
+* **systick** needs: comms + nvic + sysctl
+* **irq** needs: nvic + comms
 
 The Makefile auto-resolves dependencies and builds everything into:
 
